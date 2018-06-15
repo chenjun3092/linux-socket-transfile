@@ -17,76 +17,91 @@
 #define BUFFER_SIZE 1024
 
 
-int cmd_down(int sockfd,char * cmd)//ÏÂÔØÎÄ¼ş
+int cmd_down(int sockfd,char * cmd)//ä¸‹è½½æ–‡ä»¶
 {
-	FILE fp;
+	FILE *fp;
 	char *filename=cmd;
-	int recvbytes;
+	int recvbytes=0;
 	char buf[BUFFER_SIZE];
 	memset(buf,0,sizeof(buf));
 	
-	while(isspace(*filename)==0)//½ØÈ¡ÎÄ¼şÃû
+	while(isspace(*filename)==0)//æˆªå–æ–‡ä»¶å
 		filename++;
 	filename++;
 
-	if((fp=fopen(filename,"w"))==NULL)//´´½¨ÎÄ¼şÊ§°Ü¾Í·µ»Ø
+	if((fp=fopen(filename,"w+"))==NULL)//åˆ›å»ºæ–‡ä»¶å¤±è´¥å°±è¿”å›
 	{
 		perror("create file error");
 		return -1;
 	}
-	if(send(sockfd,cmd,strlen(cmd),0)==-1)//·¢ËÍÃüÁî
+	if(send(sockfd,cmd,strlen(cmd),0)==-1)//å‘é€å‘½ä»¤
 	{
 		perror("(down)send error");
 		return -1;
 	}
-	while((recvbytes=recv(sockfd,buf,sizeof(buf),0))>0)
+	printf("%s\n",filename);
+	int length=0;
+	while(length=recv(sockfd,buf,sizeof(buf),0)>0)
 	{
-		printf("recv file length:%d\n",recvbytes);
+		if (length < 0)  
+        {  
+            printf("Recieve Data From Server Failed!\n");  
+            break;  
+        } 
+		printf("recv file length:%d\n",length);
 	 	//printf("%s\n",buf);
-		 if(strncmp(buf,"404",3)==0)//ÇëÇó×ÊÔ´²»´æÔÚ
+		 /*
+		 if(strncmp(buf,"404",3)==0)//è¯·æ±‚èµ„æºä¸å­˜åœ¨
 		 {
-			printf("%s\n",buf);//´òÓ¡·şÎñÆ÷·µ»ØµÄĞÅÏ¢
+			printf("%s\n",buf);//æ‰“å°æœåŠ¡å™¨è¿”å›çš„ä¿¡æ¯
 			break;
 		 }
-	 	if(fwrite(buf,sizeof(char),strlen(buf),fp)<recvbytes)
+		 */
+		//printf("%s\n",buf);
+		int write_length=fwrite(buf,sizeof(char),strlen(buf),fp);
+	 	if(write_length<length)
 	 	{
 	 		printf("(down)write failed\n");
 	 		break;
 	 	}
+		//printf("hi\n");
+		bzero(buf,sizeof(buf));
 	}
+	printf("Recieve File:\t %s Finished!\n", filename);
+	fclose(fp);
 	return 0;
 }
-int cmd_up(int sockfd,char *cmd)//ÉÏ´«ÎÄ¼ş
+int cmd_up(int sockfd,char *cmd)//ä¸Šä¼ æ–‡ä»¶
 {
-	FILE fp;
+	FILE *fp;
 	char *filename=cmd;
 	int sendbytes;
 	char buf[BUFFER_SIZE];
 	memset(buf,0,sizeof(buf));
 
-	while(isspace(*filename)==-1)
+	while(isspace(*filename)==0)
 		filename++;
 	filename++;
-
-	if((fp=fopen(filename,"r"))==NULL)//´ò¿ªÎÄ¼ş ÅĞ¶ÏÎÄ¼şÊÇ·ñ´æÔÚ,²»´æÔÚÔòÍË³ö
+	printf("filename:%s\n",filename);
+	if((fp=fopen(filename,"r+"))==NULL)//æ‰“å¼€æ–‡ä»¶ åˆ¤æ–­æ–‡ä»¶æ˜¯å¦å­˜åœ¨,ä¸å­˜åœ¨åˆ™é€€å‡º
 	{
-		perror("open file error or files not exist");
+		perror("open file error");
 		return -1;
 	}
-	if(send(sockfd,cmd,strlen(cmd))==-1)//·¢ËÍÃüÁîºÍÎÄ¼şÃû
+	if(send(sockfd,cmd,strlen(cmd),0)==-1)//å‘é€å‘½ä»¤å’Œæ–‡ä»¶å
 	{
 		perror("(up)send file error");
-		return -1
+		return -1;
 	}
-	//µÈ´ı·şÎñÆ÷·µ»Ø¿ÉÒÔÈ·ÈÏ·¢ËÍµÄĞÅÏ¢.....´ı¶¨,Î´×ö;
-	sleep(1);//µÈ´ı·şÎñÆ÷½ÓÊÕ
+	//ç­‰å¾…æœåŠ¡å™¨è¿”å›å¯ä»¥ç¡®è®¤å‘é€çš„ä¿¡æ¯.....å¾…å®š,æœªåš;
+	//sleep(1);//ç­‰å¾…æœåŠ¡å™¨æ¥æ”¶
 	
-	//Ïò·şÎñÆ÷·¢ËÍÎÄ¼ş
-	int length;
+	//å‘æœåŠ¡å™¨å‘é€æ–‡ä»¶
+	int length=0;
 	while((sendbytes=fread(buf,1,sizeof(buf),fp))>0)
-	 {
+	{
 	 	printf("send file length :%d \n",sendbytes);
-	 	printf("%s\n",buf);
+	 	//printf("%s\n",buf);
 	 	if((length=send(sockfd,buf,strlen(buf),0))<sendbytes)
 	 	{
 	 		printf("send file:%s failed\n",filename);
@@ -94,13 +109,14 @@ int cmd_up(int sockfd,char *cmd)//ÉÏ´«ÎÄ¼ş
 	 	}
 	 	printf("length:%d\n",length);
 	 	//memset(buf,0,sizeof(buf));
-	 }
-	 return 0;
+	}
+	fclose(fp);
+	return 0;
 }
-int cmd_exit(int sockfd,char * cmd)//·¢ËÍÍË³öÏûÏ¢
+int cmd_exit(int sockfd,char * cmd)//å‘é€é€€å‡ºæ¶ˆæ¯
 {
 	int sendbytes;
-	if((sendbytes=send(sockfd,cmd,sizeof(cmd),0))<0)//·¢ËÍÃüÁî
+	if((sendbytes=send(sockfd,cmd,sizeof(cmd),0))<0)//å‘é€å‘½ä»¤
 	{
 		printf("(exit)send failed\n");
 		return -1;
@@ -116,69 +132,74 @@ void help()
 	printf(" exit:\t\t\texit client\n");
 	printf("\n");
 }
-int main()
+int main(int argc,char *argv[])
 {
 	int sockfd, sendbytes;
 	struct hostent *host;
 	struct sockaddr_in serv_addr;
-		
-	char ip[16];
-	//char ipstr[16];  //´æ´¢·şÎñÆ÷ip
+
+	if(argc<2)
+	{
+		printf("usage:%s ip\n",argv[0]);
+		exit(-1);
+	}	
+	//char ip[16];
+	//char ipstr[16];  //å­˜å‚¨æœåŠ¡å™¨ip
 
 	time_t t_start,t_end;
 	struct tm *ts;
 
 	char cmd[BUFFER_SIZE];
 	int filename[BUFFER_SIZE];
-	memset(cmd,0,sizeof(cmd));//ÇåÁã
+	memset(cmd,0,sizeof(cmd));//æ¸…é›¶
 	memset(filename,0,sizeof(filename));
 
 	printf("\t\t****************author by sastar****************\n");
 	
-	printf("please input ip:");//ÖĞÎÄÂÒÂë
-	scanf("%s",ip);
-	getchar();//ÍÌµô»Ø³µ¼ü
+	//printf("please input ip:");//ä¸­æ–‡ä¹±ç 
+	//scanf("%s",ip);
+	//getchar();//åæ‰å›è½¦é”®
 	
-	/*µØÖ·½âÎöº¯Êı*/
-	if ((host = gethostbyname (ip)) == NULL)
+	/*åœ°å€è§£æå‡½æ•°*/
+	if ((host = gethostbyname (argv[1])) == NULL)
 	{
 		perror("gethostbyname");
 		exit(1);
 	}
 	
-	/*´´½¨socket*/
+	/*åˆ›å»ºsocket*/
 	if ((sockfd = socket(AF_INET,SOCK_STREAM,0)) == -1)
 	{
 		perror("socket");
 		exit(1);
 	}
 
-	/*ÉèÖÃsockaddr_in ½á¹¹ÌåÖĞÏà¹Ø²ÎÊı*/
+	/*è®¾ç½®sockaddr_in ç»“æ„ä½“ä¸­ç›¸å…³å‚æ•°*/
 	serv_addr.sin_family = AF_INET;
 	serv_addr.sin_port = htons(PORT);
-	serv_addr.sin_addr = *((struct in_addr *)host->h_addr);//·şÎñÆ÷ipµØÖ·
+	serv_addr.sin_addr = *((struct in_addr *)host->h_addr);//æœåŠ¡å™¨ipåœ°å€
 	bzero(&(serv_addr.sin_zero), 8);
 
-	/*µ÷ÓÃconnectº¯ÊıÖ÷¶¯·¢Æğ¶Ô·şÎñÆ÷¶ËµÄÁ¬½Ó*/
+	/*è°ƒç”¨connectå‡½æ•°ä¸»åŠ¨å‘èµ·å¯¹æœåŠ¡å™¨ç«¯çš„è¿æ¥*/
 	if(connect(sockfd,(struct sockaddr *)&serv_addr, sizeof(struct sockaddr))== -1)
 	{
 		perror("connect");
 		exit(1);
 	}
 	
-	t_start=time(NULL);//Êä³öÊ±¼ä
+	t_start=time(NULL);//è¾“å‡ºæ—¶é—´
 	ts=localtime(&t_start);
 	printf("\t\tconnect localtime:%s\n",asctime(ts));
 
 	//inet_ntop(AF_INET,(char *)&serv_addr.sin_addr.s_addr,ipstr,16);
 	//printf("server ip:%s\nserver port:%d\n",ipstr,serv_addr.sin_port);
 
-	//ÃüÁîĞĞÏÂÔØ,ÉÏ´«ÎÄ¼ş;
+	//å‘½ä»¤è¡Œä¸‹è½½,ä¸Šä¼ æ–‡ä»¶;
 	while(1)
 	{
 		printf("please input your cmd:");
 		fgets(cmd,sizeof(cmd),stdin);
-		cmd[strlen(cmd)-1]='\0';
+		cmd[strlen(cmd)-1]='\0';//å»é™¤å›è½¦ç¬¦
 		if(strncmp(cmd,"down",4)==0)
 		{
 			cmd_down(sockfd,cmd);
@@ -186,7 +207,6 @@ int main()
 		else if(strncmp(cmd,"up",2)==0)
 		{
 			cmd_up(sockfd,cmd);
-			printf("success to upload\n");
 		}
 		else if(strncmp(cmd,"exit",4)==0)
 		{
@@ -199,7 +219,7 @@ int main()
 		}
 	}
 
-	t_end=time(NULL);//Êä³öÊ±¼ä
+	t_end=time(NULL);//è¾“å‡ºæ—¶é—´
 	ts=localtime(&t_end);
 	printf("\t\texit localtime:%s\t\t\tThe process has runing %.0f s\n",asctime(ts),difftime(t_end,t_start));
 	close(sockfd);
