@@ -22,22 +22,75 @@
 #define BUFFER_SIZE		1024
 #define MAX_QUE_CONN_NM	5
 
-struct userinfo//客户端信息
-{
-	char name[10];
-	char buf[BUFFER_SIZE];
-};
+
 
 int sockfd;//socket返回值
-int client1_fd,client2_fd;//accept返回值
 struct sockaddr_in server_sockaddr,client1_sockaddr,client2_sockaddr;
 int sin_size, recvbytes;
 //char buf[BUFFER_SIZE];
 char ip1str[16];
 char ip2str[16];
-struct userinfo user1,user2;
 
+int sendfile(int cli_sockfd,char *cmd)//发送文件
+{
+	char buf[BUFFER_SIZE];
+	char *filename=cmd;
+	int sendbytes;
+	FILE fp;
+	//char msg[BUFFER_SIZE]
+	while(isspace(*filename)==0)//截取文件名
+		filename++;
+	filename++;
+	if((fp=fopen(filename,"r"))==NULL)//打开失败就返回
+	{
+		sscanf("404 your requrest file doen't exits","%s",buf);
+		perror("open file error");
+		send(cli_sockfd,buf,strlen(buf));
+		return -1;
+	}
+	int length;
+	while((sendbytes=fread(buf,1,sizeof(buf),fp))>0)//读取数据并发送
+	{
+	 	printf("send file length :%d \n",sendbytes);
+	 	//printf("%s\n",buf);
+	 	if((length=send(sockfd,buf,strlen(buf),0))<sendbytes)
+	 	{
+	 		printf("send file:%s failed\n",filename);
+	 		break;
+	 	}
+	 	printf("length:%d\n",length);
+	 	//memset(buf,0,sizeof(buf));
+	}
+	return 0;
+}
+void recvfile(int cli_sockfd,char *cmd)//接受文件
+{
+	char buf[BUFFER_SIZE];
+	char *filename=cmd;
+	int recvbytes;
+	FILE fp;
+	while(isspace(*filename)==0)//截取文件名
+		filename++;
+	filename++;
 
+	if((fp=fopen(filename,"w"))==NULL)//创建文件失败就返回
+	{
+		perror("create file error");
+		return -1;
+	}
+	
+	while((recvbytes=recv(sockfd,buf,sizeof(buf),0))>0)
+	{
+		printf("recv file length:%d\n",recvbytes);
+	 	//printf("%s\n",buf);
+	 	if(fwrite(buf,sizeof(char),strlen(buf),fp)<recvbytes)
+	 	{
+	 		printf("(recvfile)write failed\n");
+	 		break;
+	 	}
+	}
+	return 0;
+}
 void * thread_func(void * arg)
 {
 	int thread_num=(int)arg;
@@ -45,10 +98,12 @@ void * thread_func(void * arg)
 
 	if(thread_num==0)
 	{	
+		char cmd[BUFFER_SIZE];
+		int client1_fd;
+		//FILE cli1_fd;
 		while(1)
 		{
-			memset(user1.buf , 0, sizeof(user1.buf));
-			memset(user1.name , 0, sizeof(user1.name));
+			memset( buf,0,sizeof(  buf));
 			/*调用listen函数*/
 			if (listen(sockfd, MAX_QUE_CONN_NM) == -1)
 			{
@@ -67,26 +122,30 @@ void * thread_func(void * arg)
 			inet_ntop(AF_INET,(char *)&client1_sockaddr.sin_addr.s_addr,ip1str,16);
 			printf("thread 0 src ip:%s\nsrc port:%d\n",ip1str,client1_sockaddr.sin_port);
 		
-		
-			while(strncmp(user1.buf,"quit",4)!=0)
+			while(strncmp(buf,"exit",4)!=0)
 			{
 				/*调用recv函数接收客户端的请求*/
-				memset(user1.buf , 0, sizeof(user1.buf));
-				memset(user1.name , 0, sizeof(user1.name));
-				if ((recvbytes = recv(client1_fd,&user1,sizeof(user1),0)) == -1)
+				memset(cmd,0,sizeof(cmd));
+				if ((recvbytes = recv(client1_fd,cmd,sizeof(cmd),0)) == -1)//接受客户端发送的命令
 				{
 					perror("recv");
 					pthread_exit(NULL);
 				}
-				printf("%s:%s\n",user1.name,user1.buf);
-				if((send(client2_fd,&user1,sizeof(user1),0)) == -1)
+				//printf("%s\n", buf);
+				if(strncmp(cmd,"down",4)==0)
 				{
-					perror("send 1");
-					//pthread_exit(NULL);
+					sendfile(sockfd,cmd);
+				}
+				else if(strncmp(cmd,"up",2)==0)
+				{
+					recvfile(sockfd,cmd);
+				}
+				else if(strncmp(cmd,"exit",4)==0)
+				{
 					break;
 				}
 				//printf("Received from %s: %s\r",ip1str,buf);
-				printf("Received from %s,%s\nmessage:%s\r",ip1str,user1.name,user1.buf);
+				//printf("Received from %s,%s\nmessage:%s\r",ip1str, buf);
 			}
 			close(client1_fd);
 			printf("\n\n");
@@ -97,10 +156,11 @@ void * thread_func(void * arg)
 	}
 	if(thread_num==1)
 	{
+		char cmd[BUFFER_SIZE];
+		int client2_fd;
 		while(1)
 		{
-			memset(user2.buf , 0, sizeof(user2.buf));
-			memset(user2.name , 0, sizeof(user2.name));
+			memset(cmd , 0, sizeof(cmd));
 			/*调用listen函数*/
 			if (listen(sockfd, MAX_QUE_CONN_NM) == -1)
 			{
@@ -118,25 +178,30 @@ void * thread_func(void * arg)
 			inet_ntop(AF_INET,(char *)&client2_sockaddr.sin_addr.s_addr,ip2str,16);
 			printf("thread 1 src ip:%s\nsrc port:%d\n",ip2str,client2_sockaddr.sin_port);
 		
-			while(strncmp(user2.buf,"quit",4)!=0)
+			while(strncmp(buf,"exit",4)!=0)
 			{
 				/*调用recv函数接收客户端的请求*/
-				memset(user2.buf , 0, sizeof(user2.buf));
-				memset(user2.name , 0, sizeof(user2.name));
-				if ((recvbytes = recv(client2_fd, &user2, sizeof(user2), 0)) == -1)
+				memset(cmd,0,sizeof(cmd));
+				if ((recvbytes = recv(client2_fd,cmd,sizeof(cmd),0)) == -1)
 				{
 					perror("recv");
 					pthread_exit(NULL);
 				}
-				printf("%s:%s\n",user2.name,user2.buf);
-				if((send(client1_fd, &user2, sizeof(user2), 0)) == -1)
+				//printf("%s\n",buf);
+				if(strncmp(cmd,"down",4)==0)
 				{
-					perror("send 2");
-					//pthread_exit(NULL);
+					sendfile(sockfd,cmd);
+				}
+				else if(strncmp(cmd,"up",2)==0)
+				{
+					recvfile(sockfd,cmd);
+				}
+				else if(strncmp(cmd,"exit",4)==0)
+				{
 					break;
 				}
-				//printf("Received from %s: %s\r",ip2str,buf);
-				printf("Received from %s,%s\nmessage:%s\r",ip2str,user2.name,user2.buf);
+				else
+					break;
 			}
 			close(client2_fd);
 			printf("\n\n");
