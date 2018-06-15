@@ -36,50 +36,54 @@ int sendfile(int cli_sockfd,char *cmd)//发送文件
 	char buf[BUFFER_SIZE];
 	char *filename=cmd;
 	int sendbytes;
-	FILE fp;
+	FILE *fp;
 	//char msg[BUFFER_SIZE]
 	while(isspace(*filename)==0)//截取文件名
 		filename++;
 	filename++;
-	if((fp=fopen(filename,"r"))==NULL)//打开失败就返回
+	printf("filename:%s\n",filename);
+
+	if((fp=fopen(filename,"r+"))==NULL)//打开失败就返回
 	{
 		sscanf("404 your requrest file doen't exits","%s",buf);
 		perror("open file error");
-		send(cli_sockfd,buf,strlen(buf));
+		send(cli_sockfd,buf,strlen(buf),0);
 		return -1;
 	}
-	int length;
-	while((sendbytes=fread(buf,1,sizeof(buf),fp))>0)//读取数据并发送
+	int length=0;
+	while((length=fread(buf,1,sizeof(buf),fp))>0)//读取数据并发送
 	{
-	 	printf("send file length :%d \n",sendbytes);
+	 	printf("send file length :%d \n",length);
 	 	//printf("%s\n",buf);
-	 	if((length=send(sockfd,buf,strlen(buf),0))<sendbytes)
+	 	if(send(cli_sockfd,buf,length,0)<0)
 	 	{
 	 		printf("send file:%s failed\n",filename);
 	 		break;
 	 	}
 	 	printf("length:%d\n",length);
-	 	//memset(buf,0,sizeof(buf));
+	 	memset(buf,0,sizeof(buf));
 	}
+	printf("success to send.\n");
+	fclose(fp);
 	return 0;
 }
-void recvfile(int cli_sockfd,char *cmd)//接受文件
+int recvfile(int cli_sockfd,char *cmd)//接受文件
 {
 	char buf[BUFFER_SIZE];
 	char *filename=cmd;
 	int recvbytes;
-	FILE fp;
+	FILE *fp;
 	while(isspace(*filename)==0)//截取文件名
 		filename++;
 	filename++;
 
-	if((fp=fopen(filename,"w"))==NULL)//创建文件失败就返回
+	if((fp=fopen(filename,"w+"))==NULL)//创建文件失败就返回
 	{
 		perror("create file error");
 		return -1;
 	}
 	
-	while((recvbytes=recv(sockfd,buf,sizeof(buf),0))>0)
+	while((recvbytes=recv(cli_sockfd,buf,sizeof(buf),0))>0)
 	{
 		printf("recv file length:%d\n",recvbytes);
 	 	//printf("%s\n",buf);
@@ -89,6 +93,8 @@ void recvfile(int cli_sockfd,char *cmd)//接受文件
 	 		break;
 	 	}
 	}
+	printf("success to recv.\n");
+	fclose(fp);
 	return 0;
 }
 void * thread_func(void * arg)
@@ -103,7 +109,7 @@ void * thread_func(void * arg)
 		//FILE cli1_fd;
 		while(1)
 		{
-			memset( buf,0,sizeof(  buf));
+			memset(cmd,0,sizeof(cmd));
 			/*调用listen函数*/
 			if (listen(sockfd, MAX_QUE_CONN_NM) == -1)
 			{
@@ -122,7 +128,7 @@ void * thread_func(void * arg)
 			inet_ntop(AF_INET,(char *)&client1_sockaddr.sin_addr.s_addr,ip1str,16);
 			printf("thread 0 src ip:%s\nsrc port:%d\n",ip1str,client1_sockaddr.sin_port);
 		
-			while(strncmp(buf,"exit",4)!=0)
+			while(1)
 			{
 				/*调用recv函数接收客户端的请求*/
 				memset(cmd,0,sizeof(cmd));
@@ -134,11 +140,11 @@ void * thread_func(void * arg)
 				//printf("%s\n", buf);
 				if(strncmp(cmd,"down",4)==0)
 				{
-					sendfile(sockfd,cmd);
+					sendfile(client1_fd,cmd);
 				}
 				else if(strncmp(cmd,"up",2)==0)
 				{
-					recvfile(sockfd,cmd);
+					recvfile(client1_fd,cmd);
 				}
 				else if(strncmp(cmd,"exit",4)==0)
 				{
@@ -178,7 +184,7 @@ void * thread_func(void * arg)
 			inet_ntop(AF_INET,(char *)&client2_sockaddr.sin_addr.s_addr,ip2str,16);
 			printf("thread 1 src ip:%s\nsrc port:%d\n",ip2str,client2_sockaddr.sin_port);
 		
-			while(strncmp(buf,"exit",4)!=0)
+			while(1)
 			{
 				/*调用recv函数接收客户端的请求*/
 				memset(cmd,0,sizeof(cmd));
@@ -190,18 +196,16 @@ void * thread_func(void * arg)
 				//printf("%s\n",buf);
 				if(strncmp(cmd,"down",4)==0)
 				{
-					sendfile(sockfd,cmd);
+					sendfile(client2_fd,cmd);
 				}
 				else if(strncmp(cmd,"up",2)==0)
 				{
-					recvfile(sockfd,cmd);
+					recvfile(client2_fd,cmd);
 				}
 				else if(strncmp(cmd,"exit",4)==0)
 				{
 					break;
 				}
-				else
-					break;
 			}
 			close(client2_fd);
 			printf("\n\n");
