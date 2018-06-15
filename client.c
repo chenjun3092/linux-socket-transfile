@@ -16,78 +16,131 @@
 #define PORT	4321
 #define BUFFER_SIZE 1024
 
-struct userinfo
+
+int cmd_down(int sockfd,char * cmd)//下载文件
 {
-	char name[10];
+	FILE fp;
+	char *filename=cmd;
+	int recvbytes;
 	char buf[BUFFER_SIZE];
-};
-
-int sockfd, sendbytes;
-//char buf[BUFFER_SIZE];
-struct hostent *host;
-struct sockaddr_in serv_addr;
-
-struct userinfo user;
+	memset(buf,0,sizeof(buf));
 	
-char ip[16];
-//char ipstr[16];  //存储服务器ip
-char name[10];
+	while(isspace(*filename)==0)//截取文件名
+		filename++;
+	filename++;
 
-time_t t_start,t_end;
-struct tm *ts;
-
-void * thread_func(void * arg)
+	if((fp=fopen(filename,"w"))==NULL)//创建文件失败就返回
+	{
+		perror("create file error");
+		return -1;
+	}
+	if(send(sockfd,cmd,strlen(cmd),0)==-1)//发送命令
+	{
+		perror("(down)send error");
+		return -1;
+	}
+	while((recvbytes=recv(sockfd,buf,sizeof(buf),0))>0)
+	{
+		printf("recv file length:%d\n",recvbytes);
+	 	//printf("%s\n",buf);
+		 if(strncmp(buf,"404",3)==0)//请求资源不存在
+		 {
+			printf("%s\n",buf);//打印服务器返回的信息
+			break;
+		 }
+	 	if(fwrite(buf,sizeof(char),strlen(buf),fp)<recvbytes)
+	 	{
+	 		printf("(down)write failed\n");
+	 		break;
+	 	}
+	}
+	return 0;
+}
+int cmd_up(int sockfd,char *cmd)//上传文件
 {
-	int thread_num=(int)arg;
-	if(thread_num==0)//发送信息
+	FILE fp;
+	char *filename=cmd;
+	int sendbytes;
+	char buf[BUFFER_SIZE];
+	memset(buf,0,sizeof(buf));
+
+	while(isspace(*filename)==-1)
+		filename++;
+	filename++;
+
+	if((fp=fopen(filename,"r"))==NULL)//打开文件 判断文件是否存在,不存在则退出
 	{
-		while(strncmp(user.buf,"quit",4)!=0)
-		{
-			memset(user.buf, 0, sizeof(user.buf));
-			//printf("please input data:");
-			fgets(user.buf,sizeof(user.buf),stdin);
-			/*发送消息给服务器端*/
-			if ((sendbytes = send(sockfd, &user, sizeof(user), 0)) == -1)
-			{
-				perror("send");
-				pthread_exit(NULL);
-			}
-		}
+		perror("open file error or files not exist");
+		return -1;
 	}
-	if(thread_num==1)//接受信息
+	if(send(sockfd,cmd,strlen(cmd))==-1)//发送命令和文件名
 	{
-		while(strncmp(user.buf,"quit",4)!=0)
-		{
-			memset(user.buf, 0, sizeof(user.buf));
-			if(recv(sockfd,&user,sizeof(user),0)==-1)
-			{
-				perror("recv");
-				pthread_exit(NULL);
-			}
-			//printf("receive:%s\n",buf);
-			user.buf[strlen(user.buf)-1]='\0';
-			printf("\t\t\t\t%s:%s\n",user.name,user.buf);
-			strcpy(user.name,name);//保持名字的一致，不被修改
-		}
+		perror("(up)send file error");
+		return -1
 	}
+	//等待服务器返回可以确认发送的信息.....待定,未做;
+	sleep(1);//等待服务器接收
 	
+	//向服务器发送文件
+	int length;
+	while((sendbytes=fread(buf,1,sizeof(buf),fp))>0)
+	 {
+	 	printf("send file length :%d \n",sendbytes);
+	 	printf("%s\n",buf);
+	 	if((length=send(sockfd,buf,strlen(buf),0))<sendbytes)
+	 	{
+	 		printf("send file:%s failed\n",filename);
+	 		break;
+	 	}
+	 	printf("length:%d\n",length);
+	 	//memset(buf,0,sizeof(buf));
+	 }
+	 return 0;
+}
+int cmd_exit(int sockfd,char * cmd)//发送退出消息
+{
+	int sendbytes;
+	if((sendbytes=send(sockfd,cmd,sizeof(cmd),0))<0)//发送命令
+	{
+		printf("(exit)send failed\n");
+		return -1;
+	}
+	return 0;
+}
+void help()
+{
+	printf("\n");
+	printf(" down [filename]:\tdownload file\n");
+	printf(" up [filename]:\t\tupload file\n");
+	printf(" help:\t\t\tshow cmd\n");
+	printf(" exit:\t\t\texit client\n");
+	printf("\n");
 }
 int main()
 {
-	pthread_t thread[2];
-	int no,res;
-	void * ret;
-	printf("\t\t****************author by senge****************\n");
-	printf("please input your name:");//名字信息
-	scanf("%s",name);
-	strcpy(user.name,name);
+	int sockfd, sendbytes;
+	struct hostent *host;
+	struct sockaddr_in serv_addr;
+		
+	char ip[16];
+	//char ipstr[16];  //存储服务器ip
+
+	time_t t_start,t_end;
+	struct tm *ts;
+
+	char cmd[BUFFER_SIZE];
+	int filename[BUFFER_SIZE];
+	memset(cmd,0,sizeof(cmd));//清零
+	memset(filename,0,sizeof(filename));
+
+	printf("\t\t****************author by sastar****************\n");
 	
 	printf("please input ip:");//中文乱码
 	scanf("%s",ip);
 	getchar();//吞掉回车键
 	
 	/*地址解析函数*/
-	if ((host = gethostbyname(ip)) == NULL)
+	if ((host = gethostbyname (ip)) == NULL)
 	{
 		perror("gethostbyname");
 		exit(1);
@@ -113,30 +166,40 @@ int main()
 		exit(1);
 	}
 	
-	t_start=time(NULL);
+	t_start=time(NULL);//输出时间
 	ts=localtime(&t_start);
 	printf("\t\tconnect localtime:%s\n",asctime(ts));
 
 	//inet_ntop(AF_INET,(char *)&serv_addr.sin_addr.s_addr,ipstr,16);
 	//printf("server ip:%s\nserver port:%d\n",ipstr,serv_addr.sin_port);
 
-	for(no=0;no<2;no++)
+	//命令行下载,上传文件;
+	while(1)
 	{
-		if(pthread_create(&thread[no],NULL,thread_func,(void *)no)==-1)
+		printf("please input your cmd:");
+		fgets(cmd,sizeof(cmd),stdin);
+		cmd[strlen(cmd)-1]='\0';
+		if(strncmp(cmd,"down",4)==0)
 		{
-			perror("pthread_create");
-			exit(0);
+			cmd_down(sockfd,cmd);
 		}
-		printf("create thread %d success!\n",no);
-	}
-	for(no=0;no<2;no++)
-	{
-		if(pthread_join(thread[no],&ret)==0)
-			printf("thread %d joined!\n",no);
+		else if(strncmp(cmd,"up",2)==0)
+		{
+			cmd_up(sockfd,cmd);
+			printf("success to upload\n");
+		}
+		else if(strncmp(cmd,"exit",4)==0)
+		{
+			cmd_exit(sockfd,cmd);
+			break;
+		}
 		else
-			printf("thread %d join failed!\n",no);
+		{
+			help();
+		}
 	}
-	t_end=time(NULL);
+
+	t_end=time(NULL);//输出时间
 	ts=localtime(&t_end);
 	printf("\t\texit localtime:%s\t\t\tThe process has runing %.0f s\n",asctime(ts),difftime(t_end,t_start));
 	close(sockfd);
