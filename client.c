@@ -28,17 +28,30 @@ int cmd_down(int sockfd,char * cmd)//下载文件
 	while(isspace(*filename)==0)//截取文件名
 		filename++;
 	filename++;
+	if(send(sockfd,cmd,strlen(cmd),0)==-1)//发送命令
+	{
+		perror("(down)send error");
+		return -1;
+	}
+	if(recv(sockfd,buf,sizeof(buf),0)<0)//等待服务器发回确认信息
+	{
+		perror("(down)recv error");
+		return -1;
+	}
+	if(strncmp(buf,"404",3)==0)//请求资源不存在
+	{
+		printf("%s ",buf);//打印服务器返回的信息
+		printf("you request file has not exist!\n");
+		return -1;
+	}
+	memset(buf,0,BUFFER_SIZE);
 
 	if((fp=fopen(filename,"w+"))==NULL)//创建文件失败就返回
 	{
 		perror("create file error");
 		return -1;
 	}
-	if(send(sockfd,cmd,strlen(cmd),0)==-1)//发送命令
-	{
-		perror("(down)send error");
-		return -1;
-	}
+	
 	printf("%s\n",filename);
 	int length=0;
 	while(length=recv(sockfd,buf,sizeof(buf),0))
@@ -53,25 +66,15 @@ int cmd_down(int sockfd,char * cmd)//下载文件
 			printf("%s\n",buf);
 			break;
 		}
-	 	//printf("%s\n",buf);
-		 /*
-		 if(strncmp(buf,"404",3)==0)//请求资源不存在
-		 {
-			printf("%s\n",buf);//打印服务器返回的信息
-			break;
-		 }
-		 */
-		//printf("%s\n",buf);
 		printf("recv file length:%d\n",length);
-		int write_length=fwrite(buf,sizeof(char),length,fp);
-	 	if(write_length<length)
+	 	if(fwrite(buf,sizeof(char),length,fp)<length)
 	 	{
 	 		printf("(down)write failed\n");
 	 		break;
 	 	}
 		bzero(buf,BUFFER_SIZE);
 	}
-	printf("Recieve File:\t %s Finished!\n", filename);
+	printf("download File: %s Finished!\n", filename);
 	fclose(fp);
 	return 0;
 }
@@ -106,7 +109,7 @@ int cmd_up(int sockfd,char *cmd)//上传文件
 	{
 	 	printf("send file length :%d \n",sendbytes);
 	 	//printf("%s\n",buf);
-	 	if((length=send(sockfd,buf,strlen(buf),0))<sendbytes)
+	 	if((length=send(sockfd,buf,sendbytes,0))<sendbytes)
 	 	{
 	 		printf("send file:%s failed\n",filename);
 	 		break;
