@@ -41,14 +41,18 @@ int cmd_down(int sockfd,char * cmd)//下载文件
 	}
 	printf("%s\n",filename);
 	int length=0;
-	while(length=recv(sockfd,buf,sizeof(buf),0)>0)
-	{
+	while(length=recv(sockfd,buf,sizeof(buf),0))
+	{ 	
 		if (length < 0)  
         {  
-            printf("Recieve Data From Server Failed!\n");  
+            printf("Recieve Data Failed!\n");  
             break;  
         } 
-		printf("recv file length:%d\n",length);
+		if(strncmp(buf,"200",3)==0)
+		{
+			printf("%s\n",buf);
+			break;
+		}
 	 	//printf("%s\n",buf);
 		 /*
 		 if(strncmp(buf,"404",3)==0)//请求资源不存在
@@ -58,14 +62,14 @@ int cmd_down(int sockfd,char * cmd)//下载文件
 		 }
 		 */
 		//printf("%s\n",buf);
-		int write_length=fwrite(buf,sizeof(char),strlen(buf),fp);
+		printf("recv file length:%d\n",length);
+		int write_length=fwrite(buf,sizeof(char),length,fp);
 	 	if(write_length<length)
 	 	{
 	 		printf("(down)write failed\n");
 	 		break;
 	 	}
-		//printf("hi\n");
-		bzero(buf,sizeof(buf));
+		bzero(buf,BUFFER_SIZE);
 	}
 	printf("Recieve File:\t %s Finished!\n", filename);
 	fclose(fp);
@@ -109,6 +113,11 @@ int cmd_up(int sockfd,char *cmd)//上传文件
 	 	}
 	 	printf("length:%d\n",length);
 	 	//memset(buf,0,sizeof(buf));
+	}
+	sleep(1);
+	if(send(sockfd,"200",3,0)==-1)//发送成功的标识符
+	{
+		printf("send error\n");
 	}
 	fclose(fp);
 	return 0;
