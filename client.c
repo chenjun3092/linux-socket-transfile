@@ -28,6 +28,7 @@ int cmd_down(int sockfd,char * cmd)//下载文件
 	while(isspace(*filename)==0)//截取文件名
 		filename++;
 	filename++;
+	//确认请求资源是否存在
 	if(send(sockfd,cmd,strlen(cmd),0)==-1)//发送命令
 	{
 		perror("(down)send error");
@@ -45,7 +46,7 @@ int cmd_down(int sockfd,char * cmd)//下载文件
 		return -1;
 	}
 	memset(buf,0,BUFFER_SIZE);
-
+	//确认请求完成,若存在则执行以下代码:
 	if((fp=fopen(filename,"w+"))==NULL)//创建文件失败就返回
 	{
 		perror("create file error");
@@ -60,21 +61,29 @@ int cmd_down(int sockfd,char * cmd)//下载文件
         {  
             printf("Recieve Data Failed!\n");  
             break;  
-        } 
+        }
+		/* 
 		if(strncmp(buf,"200",3)==0)
 		{
 			printf("%s\n",buf);
 			break;
 		}
+		*/
 		printf("recv file length:%d\n",length);
 	 	if(fwrite(buf,sizeof(char),length,fp)<length)
 	 	{
 	 		printf("(down)write failed\n");
 	 		break;
 	 	}
+		if(length<sizeof(buf))
+		{
+			strcpy(buf,"200");
+			send(sockfd,buf,strlen(buf),0);
+			break;
+		}
 		bzero(buf,BUFFER_SIZE);
 	}
-	printf("download File: %s Finished!\n", filename);
+	printf("download File: %s Finished!\n\n", filename);
 	fclose(fp);
 	return 0;
 }
@@ -114,14 +123,21 @@ int cmd_up(int sockfd,char *cmd)//上传文件
 	 		printf("send file:%s failed\n",filename);
 	 		break;
 	 	}
-	 	printf("length:%d\n",length);
 	 	//memset(buf,0,sizeof(buf));
 	}
-	sleep(1);
+	//sleep(1);
+	if(recv(sockfd,buf,sizeof(buf),0)>0)//互斥,与和客户端保持同步
+	{
+		if(strncmp(buf,"200",3)==0)
+		{
+			printf("upload File: %s Finished!\n\n", filename);
+		}
+	}
+	/*
 	if(send(sockfd,"200",3,0)==-1)//发送成功的标识符
 	{
 		printf("send error\n");
-	}
+	}*/
 	fclose(fp);
 	return 0;
 }
@@ -135,7 +151,7 @@ int cmd_exit(int sockfd,char * cmd)//发送退出消息
 	}
 	return 0;
 }
-void help()
+void help()//命令帮助文档
 {
 	printf("\n");
 	printf(" down [filename]:\tdownload file\n");
