@@ -70,13 +70,20 @@ int sendfile(int cli_sockfd,char *cmd)//发送文件
 	 	}
 	 	memset(buf,0,sizeof(buf));
 	}
-	sleep(1);//notes : 加个sleep函数等待上方客户端接受完数据后再接收数据退出
+	//sleep(1);//notes : 加个sleep函数等待上方客户端接受完数据后再接收数据退出
+	if(recv(cli_sockfd,buf,sizeof(buf),0)>0)//互斥,与和客户端保持同步
+	{
+		if(strncmp(buf,"200",3)==0)
+		{
+			printf("success to send.\n\n");
+		}
+	}
+	/*
 	if(send(cli_sockfd,"200",3,0)==-1)//发送成功的标识符
 	{
 		printf("send error\n");
 	}
-	//close(cli_sockfd);
-	printf("success to send.\n");
+	*/
 	fclose(fp);
 	return 0;
 }
@@ -115,9 +122,15 @@ int recvfile(int cli_sockfd,char *cmd)//接受文件
 	 		printf("(recvfile)write failed\n");
 	 		break;
 	 	}
+		if(recvbytes<sizeof(buf))
+		{
+			strcpy(buf,"200");
+			send(cli_sockfd,buf,strlen(buf),0);
+			break;
+		}
 		bzero(buf,BUFFER_SIZE);
 	}
-	printf("success to recv.\n");
+	printf("success to recv.\n\n");
 	fclose(fp);
 	return 0;
 }
