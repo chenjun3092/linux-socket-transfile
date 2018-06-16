@@ -45,9 +45,10 @@ int sendfile(int cli_sockfd,char *cmd)//发送文件
 
 	if((fp=fopen(filename,"r+"))==NULL)//打开失败就返回
 	{
-		sscanf("404 your requrest file doen't exits","%s",buf);
 		perror("open file error");
+		sscanf("404 your requrest file doen't exits","%s",buf);
 		send(cli_sockfd,buf,strlen(buf),0);
+		fclose(fp);
 		return -1;
 	}
 	int length=0;
@@ -60,10 +61,14 @@ int sendfile(int cli_sockfd,char *cmd)//发送文件
 	 		printf("send file:%s failed\n",filename);
 	 		break;
 	 	}
-	 	printf("length:%d\n",length);
 	 	memset(buf,0,sizeof(buf));
 	}
-	printf("success to send.\n");
+	sleep(1);//notes : 加个sleep函数等待上方客户端接受完数据后再接收数据退出
+	if(send(cli_sockfd,"200",3,0)==-1)//发送成功的标识符
+	{
+		printf("send error\n");
+	}
+	//close(cli_sockfd);
 	fclose(fp);
 	return 0;
 }
@@ -83,15 +88,27 @@ int recvfile(int cli_sockfd,char *cmd)//接受文件
 		return -1;
 	}
 	
-	while((recvbytes=recv(cli_sockfd,buf,sizeof(buf),0))>0)
+	while(recvbytes=recv(cli_sockfd,buf,sizeof(buf),0))
 	{
+		if (recvbytes < 0)  
+        {  
+            printf("Recieve Data Failed!\n");  
+            break;  
+        } 
+		if(strncmp(buf,"200",3)==0)
+		{
+			printf("%s\n",buf);
+			break;
+		}
 		printf("recv file length:%d\n",recvbytes);
 	 	//printf("%s\n",buf);
-	 	if(fwrite(buf,sizeof(char),strlen(buf),fp)<recvbytes)
+		int write_length = fwrite(buf,sizeof(char),recvbytes,fp);
+	 	if(write_length<recvbytes)
 	 	{
 	 		printf("(recvfile)write failed\n");
 	 		break;
 	 	}
+		bzero(buf,BUFFER_SIZE);
 	}
 	printf("success to recv.\n");
 	fclose(fp);
@@ -141,6 +158,7 @@ void * thread_func(void * arg)
 				if(strncmp(cmd,"down",4)==0)
 				{
 					sendfile(client1_fd,cmd);
+					printf("success to send.\n");
 				}
 				else if(strncmp(cmd,"up",2)==0)
 				{
@@ -197,6 +215,7 @@ void * thread_func(void * arg)
 				if(strncmp(cmd,"down",4)==0)
 				{
 					sendfile(client2_fd,cmd);
+					printf("success to send.\n");
 				}
 				else if(strncmp(cmd,"up",2)==0)
 				{
