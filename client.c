@@ -1,4 +1,3 @@
-
 /*client.c*/
 
 #include <sys/types.h>
@@ -16,7 +15,48 @@
 #define PORT	4321
 #define BUFFER_SIZE 1024
 
-
+int cmd_servls(int sockfd,char *cmd)
+{
+	int sendbytes;
+	char buf[BUFFER_SIZE];
+	if(sendbytes=send(sockfd,cmd,sizeof(cmd),0)<0)
+	{
+		printf("lsserv send failed\n");
+		return -1;
+	}
+	if(recv(sockfd,buf,sizeof(buf),0)<0)
+	{
+		printf("Recieve ls Failed!\n");  
+        return -1; 
+	}
+	printf("%s",buf);
+	printf("ls server finish.\n\n");
+	return 0;
+}
+int cmd_clils(char *cmd)
+{
+	FILE *fp;
+	char *ls="ls -l";
+	char buf[BUFFER_SIZE];
+	memset(buf,0,sizeof(buf));
+	
+	if((fp=popen(ls,"r"))==NULL)
+	{
+		perror("Popen error");
+		return -1;
+	}
+	char str[BUFFER_SIZE];
+	while((fgets(buf,BUFFER_SIZE,fp))!=NULL)//读取数据并发送
+	{
+		strcat(str,buf);//字符串连接函数
+	 	memset(buf,0,sizeof(buf));
+	}
+	printf("cli list:\n");
+	printf("%s\n",str);
+	pclose(fp);
+	printf("success to ls cli\n\n");
+	return 0;
+}
 int cmd_down(int sockfd,char * cmd)//下载文件
 {
 	FILE *fp;
@@ -154,6 +194,8 @@ int cmd_exit(int sockfd,char * cmd)//发送退出消息
 void help()//命令帮助文档
 {
 	printf("\n");
+	printf(" clils:\t\t\tlist client file\n");
+	printf(" servls:\t\tlist server file\n");
 	printf(" down [filename]:\tdownload file\n");
 	printf(" up [filename]:\t\tupload file\n");
 	printf(" help:\t\t\tshow cmd\n");
@@ -228,11 +270,19 @@ int main(int argc,char *argv[])
 		printf("please input your cmd:");
 		fgets(cmd,sizeof(cmd),stdin);
 		cmd[strlen(cmd)-1]='\0';//去除回车符
-		if(strncmp(cmd,"down",4)==0)
+		if(strncmp(cmd,"clils",5)==0)
+		{
+			cmd_clils(cmd);
+		}
+		else if(strncmp(cmd,"servls",6)==0)
+		{
+			cmd_servls(sockfd,cmd);
+		}
+		else if(strncmp(cmd,"down ",5)==0)
 		{
 			cmd_down(sockfd,cmd);
 		}
-		else if(strncmp(cmd,"up",2)==0)
+		else if(strncmp(cmd,"up ",3)==0)
 		{
 			cmd_up(sockfd,cmd);
 		}
