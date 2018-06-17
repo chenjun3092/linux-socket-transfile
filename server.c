@@ -46,7 +46,7 @@ int sendfile(int cli_sockfd,char *cmd)//发送文件
 	if((fp=fopen(filename,"r+"))==NULL)//打开失败就返回
 	{
 		memset(buf,0,sizeof(buf));
-		printf("requrest file not exits!\n");
+		printf("requrest file not exits!\n\n");
 		//sscanf("404","%s",buf);
 		strcpy(buf,"404");
 		write(cli_sockfd,buf,3);
@@ -134,6 +134,38 @@ int recvfile(int cli_sockfd,char *cmd)//接受文件
 	fclose(fp);
 	return 0;
 }
+int lsfile(int cli_sockfd,char *cmd)//列出当前目录文件并发送到客户端
+{
+	FILE *fp;
+	char buf[BUFFER_SIZE];
+	char *ls=cmd;
+	int i;
+	memset(buf,0,sizeof(buf));
+	for(i=0;i<4;i++)
+		ls++;
+	char *s=" -l";
+	strcat(ls,s);
+	if((fp=popen(ls,"r"))==NULL)
+	{
+		perror("Popen error");
+		return -1;
+	}
+	char str[BUFFER_SIZE];
+	while((fgets(buf,BUFFER_SIZE,fp))!=NULL)//读取数据并发送
+	{
+		strcat(str,buf);//字符串连接函数
+	 	memset(buf,0,sizeof(buf));
+	}
+	pclose(fp);
+	printf("%s\n",str);
+	if(send(cli_sockfd,str,strlen(str),0)<0)
+	{
+	 	printf("send list failed\n");
+	 	return -1;
+	}
+	printf("success to ls\n\n");
+	return 0;
+}
 void * thread_func(void * arg)
 {
 	int thread_num=(int)arg;
@@ -175,12 +207,15 @@ void * thread_func(void * arg)
 					pthread_exit(NULL);
 				}
 				//printf("%s\n", buf);
-				if(strncmp(cmd,"down",4)==0)
+				if(strncmp(cmd,"servls",6)==0)
+				{
+					lsfile(client1_fd,cmd);
+				}
+				else if(strncmp(cmd,"down ",5)==0)
 				{
 					sendfile(client1_fd,cmd);
-					
 				}
-				else if(strncmp(cmd,"up",2)==0)
+				else if(strncmp(cmd,"up ",3)==0)
 				{
 					recvfile(client1_fd,cmd);
 				}
@@ -232,11 +267,15 @@ void * thread_func(void * arg)
 					pthread_exit(NULL);
 				}
 				//printf("%s\n",buf);
-				if(strncmp(cmd,"down",4)==0)
+				if(strncmp(cmd,"servls",6)==0)
+				{
+					lsfile(client2_fd,cmd);
+				}
+				else if(strncmp(cmd,"down ",4)==0)
 				{
 					sendfile(client2_fd,cmd);
 				}
-				else if(strncmp(cmd,"up",2)==0)
+				else if(strncmp(cmd,"up ",3)==0)
 				{
 					recvfile(client2_fd,cmd);
 				}
@@ -259,7 +298,7 @@ int main()
 	pthread_t thread[2];
 	int no,res;
 	void * thread_ret;
-	printf("\t\t****************author by senge****************\n");
+	printf("\t\t****************author by sastar****************\n");
 	/*建立socket连接*/
 	if ((sockfd = socket(AF_INET,SOCK_STREAM,0))== -1)
 	{
