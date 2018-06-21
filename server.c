@@ -1,11 +1,10 @@
-
 /*server.c*/
 /*
-1.½¨Á¢socketÍ¨µÀ£¬socket£¨Ğ­Òé£¬ÀàĞÍ£¨tcp£¯udp£©£¬0£©
-2.¹«¿ªipµØÖ·ºÍ¶Ë¿ÚºÅ bing(sockid,±¾µØµØÖ·£¬µØÖ·³¤¶È£¨sizeof(struct sockaddr)£©)
-3.ÕìÌı£¨listen(sockid,ÇëÇóÊı)£©
-4.µÈ´ı¿Í»§¶ËµÄÁ¬½Ó£¨accept(sockid,¿Í»§¶Îsocked,³¤¶È)£©
-5.send(sockid,buf,³¤¶È,0) and recv(sockid,buf,³¤¶È,0) 
+1.å»ºç«‹socketé€šé“ï¼Œsocketï¼ˆåè®®ï¼Œç±»å‹ï¼ˆtcpï¼udpï¼‰ï¼Œ0ï¼‰
+2.å…¬å¼€ipåœ°å€å’Œç«¯å£å· bing(sockid,æœ¬åœ°åœ°å€ï¼Œåœ°å€é•¿åº¦ï¼ˆsizeof(struct sockaddr)ï¼‰)
+3.ä¾¦å¬ï¼ˆlisten(sockid,è¯·æ±‚æ•°)ï¼‰
+4.ç­‰å¾…å®¢æˆ·ç«¯çš„è¿æ¥ï¼ˆaccept(sockid,å®¢æˆ·æ®µsocked,é•¿åº¦)ï¼‰
+5.send(sockid,buf,é•¿åº¦,0) and recv(sockid,buf,é•¿åº¦,0) 
 */
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -24,26 +23,25 @@
 
 
 
-int sockfd;//socket·µ»ØÖµ
-struct sockaddr_in server_sockaddr,client1_sockaddr,client2_sockaddr;
+int sockfd;//socketè¿”å›å€¼
+struct sockaddr_in server_sockaddr,client_sockaddr;
 int sin_size, recvbytes;
 //char buf[BUFFER_SIZE];
-char ip1str[16];
-char ip2str[16];
+char ipstr[16];
 
-int sendfile(int cli_sockfd,char *cmd)//·¢ËÍÎÄ¼ş
+int sendfile(int cli_sockfd,char *cmd)//å‘é€æ–‡ä»¶
 {
 	char buf[BUFFER_SIZE];
 	char *filename=cmd;
 	int sendbytes;
 	FILE *fp;
 	//char msg[BUFFER_SIZE]
-	while(isspace(*filename)==0)//½ØÈ¡ÎÄ¼şÃû
+	while(isspace(*filename)==0)//æˆªå–æ–‡ä»¶å
 		filename++;
 	filename++;
 	printf("filename:%s\n",filename);
 
-	if((fp=fopen(filename,"r+"))==NULL)//´ò¿ªÊ§°Ü¾Í·µ»Ø
+	if((fp=fopen(filename,"r+"))==NULL)//æ‰“å¼€å¤±è´¥å°±è¿”å›
 	{
 		memset(buf,0,sizeof(buf));
 		printf("requrest file not exits!\n\n");
@@ -59,7 +57,7 @@ int sendfile(int cli_sockfd,char *cmd)//·¢ËÍÎÄ¼ş
 		write(cli_sockfd,buf,3);
 	}
 	int length=0;
-	while((length=fread(buf,1,sizeof(buf),fp))>0)//¶ÁÈ¡Êı¾İ²¢·¢ËÍ
+	while((length=fread(buf,1,sizeof(buf),fp))>0)//è¯»å–æ•°æ®å¹¶å‘é€
 	{
 	 	printf("send file length :%d \n",length);
 	 	//printf("%s\n",buf);
@@ -70,8 +68,8 @@ int sendfile(int cli_sockfd,char *cmd)//·¢ËÍÎÄ¼ş
 	 	}
 	 	memset(buf,0,sizeof(buf));
 	}
-	//sleep(1);//notes : ¼Ó¸ösleepº¯ÊıµÈ´ıÉÏ·½¿Í»§¶Ë½ÓÊÜÍêÊı¾İºóÔÙ½ÓÊÕÊı¾İÍË³ö
-	if(recv(cli_sockfd,buf,sizeof(buf),0)>0)//»¥³â,ÓëºÍ¿Í»§¶Ë±£³ÖÍ¬²½
+	//sleep(1);//notes : åŠ ä¸ªsleepå‡½æ•°ç­‰å¾…ä¸Šæ–¹å®¢æˆ·ç«¯æ¥å—å®Œæ•°æ®åå†æ¥æ”¶æ•°æ®é€€å‡º
+	if(recv(cli_sockfd,buf,sizeof(buf),0)>0)//äº’æ–¥,ä¸å’Œå®¢æˆ·ç«¯ä¿æŒåŒæ­¥
 	{
 		if(strncmp(buf,"200",3)==0)
 		{
@@ -79,7 +77,7 @@ int sendfile(int cli_sockfd,char *cmd)//·¢ËÍÎÄ¼ş
 		}
 	}
 	/*
-	if(send(cli_sockfd,"200",3,0)==-1)//·¢ËÍ³É¹¦µÄ±êÊ¶·û
+	if(send(cli_sockfd,"200",3,0)==-1)//å‘é€æˆåŠŸçš„æ ‡è¯†ç¬¦
 	{
 		printf("send error\n");
 	}
@@ -87,17 +85,17 @@ int sendfile(int cli_sockfd,char *cmd)//·¢ËÍÎÄ¼ş
 	fclose(fp);
 	return 0;
 }
-int recvfile(int cli_sockfd,char *cmd)//½ÓÊÜÎÄ¼ş
+int recvfile(int cli_sockfd,char *cmd)//æ¥å—æ–‡ä»¶
 {
 	char buf[BUFFER_SIZE];
 	char *filename=cmd;
 	int recvbytes;
 	FILE *fp;
-	while(isspace(*filename)==0)//½ØÈ¡ÎÄ¼şÃû
+	while(isspace(*filename)==0)//æˆªå–æ–‡ä»¶å
 		filename++;
 	filename++;
 
-	if((fp=fopen(filename,"w+"))==NULL)//´´½¨ÎÄ¼şÊ§°Ü¾Í·µ»Ø
+	if((fp=fopen(filename,"w+"))==NULL)//åˆ›å»ºæ–‡ä»¶å¤±è´¥å°±è¿”å›
 	{
 		perror("create file error");
 		return -1;
@@ -134,7 +132,7 @@ int recvfile(int cli_sockfd,char *cmd)//½ÓÊÜÎÄ¼ş
 	fclose(fp);
 	return 0;
 }
-int lsfile(int cli_sockfd,char *cmd)//ÁĞ³öµ±Ç°Ä¿Â¼ÎÄ¼ş²¢·¢ËÍµ½¿Í»§¶Ë
+int lsfile(int cli_sockfd,char *cmd)//åˆ—å‡ºå½“å‰ç›®å½•æ–‡ä»¶å¹¶å‘é€åˆ°å®¢æˆ·ç«¯
 {
 	FILE *fp;
 	char buf[BUFFER_SIZE];
@@ -151,9 +149,9 @@ int lsfile(int cli_sockfd,char *cmd)//ÁĞ³öµ±Ç°Ä¿Â¼ÎÄ¼ş²¢·¢ËÍµ½¿Í»§¶Ë
 		return -1;
 	}
 	char str[BUFFER_SIZE];
-	while((fgets(buf,BUFFER_SIZE,fp))!=NULL)//¶ÁÈ¡Êı¾İ²¢·¢ËÍ
+	while((fgets(buf,BUFFER_SIZE,fp))!=NULL)//è¯»å–æ•°æ®å¹¶å‘é€
 	{
-		strcat(str,buf);//×Ö·û´®Á¬½Óº¯Êı
+		strcat(str,buf);//å­—ç¬¦ä¸²è¿æ¥å‡½æ•°
 	 	memset(buf,0,sizeof(buf));
 	}
 	pclose(fp);
@@ -170,127 +168,63 @@ void * thread_func(void * arg)
 {
 	int thread_num=(int)arg;
 	sin_size=sizeof(struct sockaddr);
-
-	if(thread_num==0)
-	{	
-		char cmd[BUFFER_SIZE];
-		int client1_fd;
-		//FILE cli1_fd;
-		while(1)
-		{
-			memset(cmd,0,sizeof(cmd));
-			/*µ÷ÓÃlistenº¯Êı*/
-			if (listen(sockfd, MAX_QUE_CONN_NM) == -1)
-			{
-				perror("listen");
-				exit(1);
-			}
-			printf("thread %d listen...\n",thread_num);
-		
-			/*µ÷ÓÃacceptº¯Êı£¬µÈ´ı¿Í»§¶ËµÄÁ¬½Ó*/
-			if ((client1_fd = accept(sockfd, (struct sockaddr *)&client1_sockaddr, &sin_size)) == -1)//½«¿Í»§¶Ë´«ÈëµÄÖµ´«Èëclient1_sockaddr,³¤¶ÈÎªstruct sockaddr
-			{
-				perror("accept 0");
-				exit(1);
-			}
-		
-			inet_ntop(AF_INET,(char *)&client1_sockaddr.sin_addr.s_addr,ip1str,16);
-			printf("thread 0 src ip:%s\nsrc port:%d\n",ip1str,client1_sockaddr.sin_port);
-		
-			while(1)
-			{
-				/*µ÷ÓÃrecvº¯Êı½ÓÊÕ¿Í»§¶ËµÄÇëÇó*/
-				memset(cmd,0,sizeof(cmd));
-				if ((recvbytes = recv(client1_fd,cmd,sizeof(cmd),0)) == -1)//½ÓÊÜ¿Í»§¶Ë·¢ËÍµÄÃüÁî
-				{
-					perror("recv");
-					pthread_exit(NULL);
-				}
-				//printf("%s\n", buf);
-				if(strncmp(cmd,"servls",6)==0)
-				{
-					lsfile(client1_fd,cmd);
-				}
-				else if(strncmp(cmd,"down ",5)==0)
-				{
-					sendfile(client1_fd,cmd);
-				}
-				else if(strncmp(cmd,"up ",3)==0)
-				{
-					recvfile(client1_fd,cmd);
-				}
-				else if(strncmp(cmd,"exit",4)==0)
-				{
-					break;
-				}
-				//printf("Received from %s: %s\r",ip1str,buf);
-				//printf("Received from %s,%s\nmessage:%s\r",ip1str, buf);
-			}
-			close(client1_fd);
-			printf("\n\n");
-		}
-		
-		
-		
-	}
-	if(thread_num==1)
+	
+	char cmd[BUFFER_SIZE];
+	int client_fd;
+	//FILE cli1_fd;
+	while(1)
 	{
-		char cmd[BUFFER_SIZE];
-		int client2_fd;
+		memset(cmd,0,sizeof(cmd));
+		/*è°ƒç”¨listenå‡½æ•°*/
+		if (listen(sockfd, MAX_QUE_CONN_NM) == -1)
+		{
+			perror("listen");
+			exit(1);
+		}
+		printf("thread %d listen...\n",thread_num);
+	
+		/*è°ƒç”¨acceptå‡½æ•°ï¼Œç­‰å¾…å®¢æˆ·ç«¯çš„è¿æ¥*/
+		if ((client_fd = accept(sockfd, (struct sockaddr *)&client_sockaddr, &sin_size)) == -1)//å°†å®¢æˆ·ç«¯ä¼ å…¥çš„å€¼ä¼ å…¥client_sockaddr,é•¿åº¦ä¸ºstruct sockaddr
+		{
+			perror("accept 0");
+			exit(1);
+		}
+	
+		inet_ntop(AF_INET,(char *)&client_sockaddr.sin_addr.s_addr,ipstr,16);
+		printf("thread 0 src ip:%s\nsrc port:%d\n",ipstr,client_sockaddr.sin_port);
+	
 		while(1)
 		{
-			memset(cmd , 0, sizeof(cmd));
-			/*µ÷ÓÃlistenº¯Êı*/
-			if (listen(sockfd, MAX_QUE_CONN_NM) == -1)
+			/*è°ƒç”¨recvå‡½æ•°æ¥æ”¶å®¢æˆ·ç«¯çš„è¯·æ±‚*/
+			memset(cmd,0,sizeof(cmd));
+			if ((recvbytes = recv(client_fd,cmd,sizeof(cmd),0)) == -1)//æ¥å—å®¢æˆ·ç«¯å‘é€çš„å‘½ä»¤
 			{
-				perror("listen");
-				exit(1);
+				perror("recv");
+				pthread_exit(NULL);
 			}
-			printf("thread %d listen...\n",thread_num);
-			
-			if ((client2_fd = accept(sockfd, (struct sockaddr *)&client2_sockaddr, &sin_size)) == -1)//½«¿Í»§¶Ë´«ÈëµÄÖµ´«Èëclient1_sockaddr,³¤¶ÈÎªstruct sockaddr
+			//printf("%s\n", buf);
+			if(strncmp(cmd,"servls",6)==0)
 			{
-				perror("accept 1");
-				exit(1);
+				lsfile(client_fd,cmd);
 			}
-		
-			inet_ntop(AF_INET,(char *)&client2_sockaddr.sin_addr.s_addr,ip2str,16);
-			printf("thread 1 src ip:%s\nsrc port:%d\n",ip2str,client2_sockaddr.sin_port);
-		
-			while(1)
+			else if(strncmp(cmd,"down ",5)==0)
 			{
-				/*µ÷ÓÃrecvº¯Êı½ÓÊÕ¿Í»§¶ËµÄÇëÇó*/
-				memset(cmd,0,sizeof(cmd));
-				if ((recvbytes = recv(client2_fd,cmd,sizeof(cmd),0)) == -1)
-				{
-					perror("recv");
-					pthread_exit(NULL);
-				}
-				//printf("%s\n",buf);
-				if(strncmp(cmd,"servls",6)==0)
-				{
-					lsfile(client2_fd,cmd);
-				}
-				else if(strncmp(cmd,"down ",4)==0)
-				{
-					sendfile(client2_fd,cmd);
-				}
-				else if(strncmp(cmd,"up ",3)==0)
-				{
-					recvfile(client2_fd,cmd);
-				}
-				else if(strncmp(cmd,"exit",4)==0)
-				{
-					break;
-				}
+				sendfile(client_fd,cmd);
 			}
-			close(client2_fd);
-			printf("\n\n");
+			else if(strncmp(cmd,"up ",3)==0)
+			{
+				recvfile(client_fd,cmd);
+			}
+			else if(strncmp(cmd,"exit",4)==0)
+			{
+				break;
+			}
+			//printf("Received from %s: %s\r",ipstr,buf);
+			//printf("Received from %s,%s\nmessage:%s\r",ipstr, buf);
 		}
-		
-			
-		//close(sockfd);
-	}
+		close(client_fd);
+		printf("\n\n");
+	}	
 }
 
 int main()
@@ -299,7 +233,7 @@ int main()
 	int no,res;
 	void * thread_ret;
 	printf("\t\t****************author by sastar****************\n");
-	/*½¨Á¢socketÁ¬½Ó*/
+	/*å»ºç«‹socketè¿æ¥*/
 	if ((sockfd = socket(AF_INET,SOCK_STREAM,0))== -1)
 	{
 		perror("socket");
@@ -307,24 +241,24 @@ int main()
 	}
 	printf("Socket id = %d\n",sockfd);	
 
-	/*ÉèÖÃsockaddr_in ½á¹¹ÌåÖĞÏà¹Ø²ÎÊı,ÉèÖÃÌ×½Ó×ÖÊôĞÔ*/
+	/*è®¾ç½®sockaddr_in ç»“æ„ä½“ä¸­ç›¸å…³å‚æ•°,è®¾ç½®å¥—æ¥å­—å±æ€§*/
 	server_sockaddr.sin_family = AF_INET;
 	server_sockaddr.sin_port = htons(PORT);
-	//inet_pton(AF_INET, "127.0.0.1", &server_addr.sin_addr)//µ¥¶ÀÉèÖÃ¿É½ÓÊÜµÄip
+	//inet_pton(AF_INET, "127.0.0.1", &server_addr.sin_addr)//å•ç‹¬è®¾ç½®å¯æ¥å—çš„ip
 	server_sockaddr.sin_addr.s_addr = INADDR_ANY;
 	//bzero(&(server_sockaddr.sin_zero), 8);
 	memset(&(server_sockaddr.sin_zero),0,8);
 
-	int i = 1;/* Ê¹µÃÖØ¸´Ê¹ÓÃ±¾µØµØÖ·ÓëÌ×½Ó×Ö½øĞĞ°ó¶¨ */
+	int i = 1;/* ä½¿å¾—é‡å¤ä½¿ç”¨æœ¬åœ°åœ°å€ä¸å¥—æ¥å­—è¿›è¡Œç»‘å®š */
 	setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &i, sizeof(i));
 
-	/*°ó¶¨º¯Êıbind*/
-	if (bind(sockfd, (struct sockaddr *)&server_sockaddr, sizeof(struct sockaddr))== -1)//½«server_sockaddr½á¹¹ÌåµÄipºÍ¶Ë¿ÚºÅ¹«²¼
+	/*ç»‘å®šå‡½æ•°bind*/
+	if (bind(sockfd, (struct sockaddr *)&server_sockaddr, sizeof(struct sockaddr))== -1)//å°†server_sockaddrç»“æ„ä½“çš„ipå’Œç«¯å£å·å…¬å¸ƒ
 	{
 		perror("bind 1");
 		exit(1);
 	}
-	printf("thread Bind success!\n");
+	printf("Bind success!\n");
 
 
 	for(no=0;no<2;no++)
