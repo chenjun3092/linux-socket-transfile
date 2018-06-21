@@ -30,6 +30,7 @@ int cmd_servls(int sockfd,char *cmd)
         return -1; 
 	}
 	printf("%s",buf);
+	fflush(stdin);
 	printf("ls server finish.\n\n");
 	return 0;
 }
@@ -54,6 +55,7 @@ int cmd_clils(char *cmd)
 	printf("cli list:\n");
 	printf("%s\n",str);
 	pclose(fp);
+	fflush(stdin);
 	printf("success to ls cli\n\n");
 	return 0;
 }
@@ -212,9 +214,7 @@ int main(int argc,char *argv[])
 	{
 		printf("usage:%s ip\n",argv[0]);
 		exit(-1);
-	}	
-	//char ip[16];
-	//char ipstr[16];  //存储服务器ip
+	}
 
 	time_t t_start,t_end;
 	struct tm *ts;
@@ -226,24 +226,18 @@ int main(int argc,char *argv[])
 
 	printf("\t\t****************author by sastar****************\n");
 	
-	//printf("please input ip:");//中文乱码
-	//scanf("%s",ip);
-	//getchar();//吞掉回车键
-	
 	/*地址解析函数*/
 	if ((host = gethostbyname (argv[1])) == NULL)
 	{
 		perror("gethostbyname");
 		exit(1);
 	}
-	
 	/*创建socket*/
 	if ((sockfd = socket(AF_INET,SOCK_STREAM,0)) == -1)
 	{
 		perror("socket");
 		exit(1);
 	}
-
 	/*设置sockaddr_in 结构体中相关参数*/
 	serv_addr.sin_family = AF_INET;
 	serv_addr.sin_port = htons(PORT);
