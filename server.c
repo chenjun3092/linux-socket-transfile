@@ -175,13 +175,6 @@ void * thread_func(void * arg)
 	while(1)
 	{
 		memset(cmd,0,sizeof(cmd));
-		/*调用listen函数*/
-		if (listen(sockfd, MAX_QUE_CONN_NM) == -1)
-		{
-			perror("listen");
-			exit(1);
-		}
-		printf("thread %d listen...\n",thread_num);
 	
 		/*调用accept函数，等待客户端的连接*/
 		if ((client_fd = accept(sockfd, (struct sockaddr *)&client_sockaddr, &sin_size)) == -1)//将客户端传入的值传入client_sockaddr,长度为struct sockaddr
@@ -259,6 +252,12 @@ int main()
 		exit(1);
 	}
 	printf("Bind success!\n");
+	/*调用listen函数*/
+	if (listen(sockfd, MAX_QUE_CONN_NM) == -1)
+	{
+		perror("listen");
+		exit(1);
+	}
 
 
 	for(no=0;no<2;no++)
